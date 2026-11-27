@@ -767,7 +767,7 @@ links.querySelectorAll('a').forEach(a=>a.addEventListener('click',()=>links.clas
 
 
 /* ---- Drive file browser (uses the free Apps Script lister when SCRIPT_URL is set) ---- */
-const SCRIPT_URL='';   // paste the Apps Script web app URL between the quotes
+const SCRIPT_URL='https://script.google.com/macros/s/AKfycbyYEMqly1Dnu2adMB_IKzwoLIvTOT4351Luo8GQUmMqB7psh9iQv1oah4DKM9D9EVt-iQ/exec';   // paste the Apps Script web app URL between the quotes
 const esc=t=>String(t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fcache={};
 const ficon=m=>/folder/.test(m)?'📁':/pdf/.test(m)?'📕':/image/.test(m)?'🖼️':/video/.test(m)?'🎬':/presentation|powerpoint/.test(m)?'📊':/sheet|excel/.test(m)?'📗':/document|word/.test(m)?'📘':'📄';
