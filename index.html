@@ -291,6 +291,25 @@ footer a:hover{color:#fff}
 .vw-note{padding:10px 22px;font-size:.82rem;color:var(--muted);background:#fff;border-top:1px solid var(--line)}
 @media (max-width:600px){.vw{padding:0}.vw-box{height:100%;border-radius:0}.vw-act .btn{display:none}}
 
+/* file browser */
+.fb-wrap,.fb{display:flex;flex-direction:column;height:100%}
+.fb-wrap iframe,.fb iframe{flex:1;width:100%;border:0;background:#fff}
+.fb-top{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:12px 20px;background:#fff;border-bottom:1px solid var(--line)}
+.fb-top input{min-height:42px;padding:0 14px;border:1px solid var(--line);border-radius:10px;font:inherit;font-size:16px;width:min(280px,100%)}
+.fb-top .btn{min-height:40px;padding:0 14px;font-size:.88rem}
+.fb-title{flex:1;color:var(--navy);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.crumbs{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:.92rem;color:var(--muted)}
+.crumbs button{border:0;background:none;color:var(--orange-d);font-weight:700;padding:6px 2px}
+.crumbs b{color:var(--navy)}
+.fb-list{overflow:auto;padding:8px 12px 20px}
+.fb-row{display:flex;align-items:center;gap:12px;width:100%;min-height:52px;padding:8px 12px;border:0;border-bottom:1px solid var(--line);background:none;text-align:left;border-radius:8px}
+.fb-row:hover{background:#fff}
+.fb-row .fi{font-size:1.3rem;width:28px;text-align:center}
+.fb-row .fn{flex:1;font-weight:600;color:var(--ink);overflow-wrap:anywhere}
+.fb-row .fs{font-size:.82rem;color:var(--muted);white-space:nowrap}
+.fb-msg{padding:60px 20px;text-align:center;color:var(--muted)}
+.vw-note a{color:var(--orange-d);font-weight:700}
+
 /* photos */
 .photo-frame{position:absolute;inset:0 40px 0 40px;border-radius:24px;overflow:hidden;box-shadow:0 40px 80px rgba(0,0,0,.45);border:6px solid rgba(255,255,255,.1);background:#d9cdb6}
 .photo-frame img{width:100%;height:100%;object-fit:cover;object-position:50% 15%;display:block}
@@ -746,11 +765,38 @@ burger.addEventListener('click',()=>{const o=links.classList.toggle('open');burg
 links.querySelectorAll('a').forEach(a=>a.addEventListener('click',()=>links.classList.remove('open')));
 
 
+
+/* ---- Drive file browser (uses the free Apps Script lister when SCRIPT_URL is set) ---- */
+const SCRIPT_URL='';   // paste the Apps Script web app URL between the quotes
+const esc=t=>String(t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fcache={};
+const ficon=m=>/folder/.test(m)?'📁':/pdf/.test(m)?'📕':/image/.test(m)?'🖼️':/video/.test(m)?'🎬':/presentation|powerpoint/.test(m)?'📊':/sheet|excel/.test(m)?'📗':/document|word/.test(m)?'📘':'📄';
+const fsize=b=>!b?'':b>1048576?(b/1048576).toFixed(1)+' MB':Math.max(1,Math.round(b/1024))+' KB';
+async function browse(id,trail){
+  vwb.innerHTML='<div class="fb-msg">Loading files…</div>';
+  try{
+    const d=fcache[id]||(fcache[id]=await (await fetch(SCRIPT_URL+'?id='+encodeURIComponent(id))).json());
+    if(d.error)throw new Error(d.error);
+    const crumbs=trail.map((c,i)=>i<trail.length-1?`<button data-c="${i}">${esc(c.name)}</button><span>›</span>`:`<b>${esc(c.name)}</b>`).join('');
+    const items=[...d.folders.map(f=>({...f,mime:'folder'})),...d.files];
+    vwb.innerHTML=`<div class="fb"><div class="fb-top"><div class="crumbs">${crumbs}</div><input type="search" placeholder="Search in this folder…" aria-label="Search files"></div>
+      <div class="fb-list">${items.length?items.map((f,i)=>`<button class="fb-row" data-i="${i}"><span class="fi">${ficon(f.mime)}</span><span class="fn">${esc(f.name)}</span><span class="fs">${f.mime==='folder'?'Folder':fsize(f.size)}</span></button>`).join(''):'<div class="fb-msg">This folder is empty.</div>'}</div></div>`;
+    vwb.querySelectorAll('[data-c]').forEach(b=>b.addEventListener('click',()=>{const t=trail.slice(0,+b.dataset.c+1);browse(t[t.length-1].id,t)}));
+    vwb.querySelector('input').addEventListener('input',e=>{const q=e.target.value.toLowerCase();vwb.querySelectorAll('.fb-row').forEach(r=>r.hidden=!r.querySelector('.fn').textContent.toLowerCase().includes(q))});
+    vwb.querySelectorAll('.fb-row').forEach(b=>b.addEventListener('click',()=>{const f=items[+b.dataset.i];
+      if(f.mime==='folder')browse(f.id,[...trail,{id:f.id,name:f.name}]);
+      else vwb.innerHTML=`<div class="fb"><div class="fb-top"><button class="btn btn-ghost fb-back">← Back</button><b class="fb-title">${esc(f.name)}</b><a class="btn btn-o" href="https://drive.google.com/uc?export=download&id=${encodeURIComponent(f.id)}" target="_blank" rel="noopener">Download</a></div><iframe src="https://drive.google.com/file/d/${encodeURIComponent(f.id)}/preview" title="${esc(f.name)}" allow="autoplay"></iframe></div>`,
+        vwb.querySelector('.fb-back')&&vwb.querySelector('.fb-back').addEventListener('click',()=>browse(id,trail));}));
+  }catch(err){
+    vwb.innerHTML=`<div class="fb-msg">Couldn't load this folder right now.<br><a class="btn btn-o" style="margin-top:14px" href="${folderUrl(id)}" target="_blank" rel="noopener">Open in Google Drive ↗</a></div>`;
+  }
+}
+
 const vw=document.getElementById('vw'),vwb=document.getElementById('vwb'),vwtabs=document.getElementById('vwtabs');
 const folderUrl=id=>'https://drive.google.com/drive/folders/'+id;
 function vwShow(r,mode){
   vwtabs.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.m===mode));
-  if(mode==='d'){vwb.innerHTML=`<iframe src="https://drive.google.com/embeddedfolderview?id=${r.d}#grid" title="${r.t}"></iframe>`}
+  if(mode==='d'){SCRIPT_URL?browse(r.d,[{id:r.d,name:r.t}]):vwb.innerHTML=`<div class="fb-wrap"><iframe src="https://drive.google.com/embeddedfolderview?id=${r.d}#grid" title="${esc(r.t)}"></iframe><div class="vw-note">Folder not loading? <a href="${folderUrl(r.d)}" target="_blank" rel="noopener">Open it in Google Drive ↗</a></div></div>`}
   else{vwb.innerHTML='<div class="vids">'+r.v.map((id,i)=>`<button class="vid" data-y="${id}" aria-label="Play video ${i+1}"><img src="https://i.ytimg.com/vi/${id}/hqdefault.jpg" alt="" loading="lazy" onerror="this.remove()"><span class="n">${i+1}</span><span class="play"></span></button>`).join('')+'</div>';
     vwb.querySelectorAll('.vid').forEach(b=>b.addEventListener('click',()=>{b.outerHTML=`<div class="vid"><iframe src="https://www.youtube-nocookie.com/embed/${b.dataset.y}?autoplay=1&rel=0" allow="autoplay; encrypted-media; fullscreen" allowfullscreen title="Video"></iframe></div>`}))}
 }
